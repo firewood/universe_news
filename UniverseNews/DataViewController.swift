@@ -9,18 +9,34 @@
 import UIKit
 import WebKit
 
-class DataViewController: UIViewController {
+class DataViewController: UIViewController, WKNavigationDelegate {
 
     @IBOutlet weak var dataLabel: UILabel!
     @IBOutlet weak var usageLabel: UILabel!
     var dataObject: String = ""
     var webView: WKWebView!
+//    var webView: UIWebView!
 
     required init?(coder aDecoder: NSCoder) {
         super.init(coder: aDecoder)
-        webView = WKWebView()
+
         let url:URL! = URL(string:"https://www.google.com")
+
+        let config: WKWebViewConfiguration! = WKWebViewConfiguration()
+        if #available(iOS 9, *) {
+            config.websiteDataStore = WKWebsiteDataStore.default()
+        }
+        webView = WKWebView(frame: CGRect.zero, configuration: config)
+        webView.navigationDelegate = self
         webView.load(URLRequest(url: url))
+/*
+        webView = UIWebView()
+        webView.loadRequest(URLRequest(url: url))
+*/
+    }
+
+    deinit {
+        webView.removeFromSuperview()
     }
 
     override func viewDidLoad() {
@@ -47,8 +63,18 @@ class DataViewController: UIViewController {
     }
 
     func updateUsage() {
-        let r = URLCache.shared.currentDiskUsage
-        usageLabel.text = String(format: "%ld", r)
+        usageLabel.text = String(format: "MEM: %lld KB, DISK: %lld KB", URLCache.shared.currentMemoryUsage / 1024, URLCache.shared.currentDiskUsage / 1024)
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        if (navigationAction.navigationType == .linkActivated) {
+            if (navigationAction.sourceFrame.isMainFrame && navigationAction.targetFrame == nil) {
+                print("OPENING NEW WINDOW")
+                decisionHandler(.cancel)
+                webView.load(navigationAction.request)
+                return
+            }
+        }
+        decisionHandler(.allow)
     }
 }
-
